@@ -1,6 +1,8 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import type { Monaco } from "@monaco-editor/react";
+import { Sparkles, X, Send, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { useAiGenerate } from "../hooks/useAiGenerate";
 
 interface EditorPaneProps {
   value: string;
@@ -10,6 +12,9 @@ interface EditorPaneProps {
 
 export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleChange = useCallback(
     (newValue: string | undefined) => {
@@ -21,8 +26,31 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
     [onChange]
   );
 
+  const handleChunk = useCallback(
+    (xml: string, _replace: boolean) => {
+      onChange(xml);
+    },
+    [onChange]
+  );
+
+  const { generate, cancel, isGenerating, error } = useAiGenerate(handleChunk);
+
+  const handleGenerate = useCallback(() => {
+    if (!prompt.trim()) return;
+    generate(prompt.trim());
+  }, [prompt, generate]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        handleGenerate();
+      }
+    },
+    [handleGenerate]
+  );
+
   const handleEditorWillMount = useCallback((monaco: Monaco) => {
-    // Basic XML snippets for BPMN
     monaco.languages.registerCompletionItemProvider("xml", {
       provideCompletionItems: (model: import("monaco-editor").editor.ITextModel, position: import("monaco-editor").Position) => {
         const word = model.getWordUntilPosition(position);
@@ -104,8 +132,70 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (aiOpen) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [aiOpen]);
+
   return (
     <div className="h-full w-full flex flex-col">
+      {/* AI Panel */}
+      <div className="shrink-0 border-b border-border">
+        <button
+          onClick={() => setAiOpen((o) => !o)}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          <span>AI Generate</span>
+          <span className="ml-auto text-muted-foreground/60">
+            {aiOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </span>
+        </button>
+
+        {aiOpen && (
+          <div className="px-3 pb-3 flex flex-col gap-2">
+            <textarea
+              ref={textareaRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Describe the BPMN diagram you want to generate… (⌘Enter to send)"
+              rows={3}
+              disabled={isGenerating}
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            {error && (
+              <p className="text-xs text-destructive">{error}</p>
+            )}
+            <div className="flex items-center gap-2 justify-end">
+              {isGenerating && (
+                <button
+                  onClick={cancel}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Stop
+                </button>
+              )}
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating || !prompt.trim()}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                {isGenerating ? "Generating…" : "Generate"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Monaco Editor */}
       <div className="flex-1 min-h-0">
         <Editor
           height="100%"

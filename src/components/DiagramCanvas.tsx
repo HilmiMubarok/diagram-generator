@@ -74,7 +74,8 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-import when xml prop changes externally (e.g. editor edits, template load)
+  // Re-import when xml prop changes externally (e.g. editor edits, template load, AI stream)
+  // Debounced so rapid streaming chunks don't thrash the renderer
   useEffect(() => {
     const modeler = viewerRef.current;
     if (!modeler) return;
@@ -86,23 +87,29 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
     }
 
     let cancelled = false;
-    setIsLoading(true);
-    modeler
-      .importXML(xml)
-      .then(() => {
-        if (cancelled) return;
-        onErrorsRef.current([]);
-        modeler.get<Canvas>("canvas").zoom("fit-viewport");
-      })
-      .catch((err: Error) => {
-        if (cancelled) return;
-        onErrorsRef.current([{ message: err.message }]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      setIsLoading(true);
+      modeler
+        .importXML(xml)
+        .then(() => {
+          if (cancelled) return;
+          onErrorsRef.current([]);
+          modeler.get<Canvas>("canvas").zoom("fit-viewport");
+        })
+        .catch((err: Error) => {
+          if (cancelled) return;
+          onErrorsRef.current([{ message: err.message }]);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+    }, 600);
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [xml]);
 
   const handleZoomIn = useCallback(() => {
