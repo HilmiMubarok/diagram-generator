@@ -174,7 +174,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
                 <ZoomIn className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom In</TooltipContent>
+            <TooltipContent>Perbesar</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -182,7 +182,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
                 <ZoomOut className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom Out</TooltipContent>
+            <TooltipContent>Perkecil</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -190,7 +190,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
                 <Maximize className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fit to Screen</TooltipContent>
+            <TooltipContent>Sesuaikan Layar</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -198,7 +198,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset View</TooltipContent>
+            <TooltipContent>Reset Tampilan</TooltipContent>
           </Tooltip>
           <div className="flex-1" />
           <Tooltip>
@@ -207,7 +207,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
                 <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Export PNG</TooltipContent>
+            <TooltipContent>Unduh PNG</TooltipContent>
           </Tooltip>
         </div>
 
@@ -221,10 +221,10 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
           {errors.length > 0 && (
             <div className="absolute inset-x-0 bottom-0 z-10 p-4">
               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive max-h-40 overflow-auto">
-                <div className="font-medium mb-1">Diagram Errors</div>
+                <div className="font-medium mb-1">Aduh, ada error nih 😬</div>
                 {errors.map((err, i) => (
                   <div key={i} className="font-mono text-xs">
-                    {err.line ? `Line ${err.line}: ` : ""}
+                    {err.line ? `Baris ${err.line}: ` : ""}
                     {err.message}
                   </div>
                 ))}

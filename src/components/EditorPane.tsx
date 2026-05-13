@@ -172,7 +172,7 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
           className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
         >
           <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span>AI Generate</span>
+          <span>Bikin Diagram Pake AI</span>
           <span className="ml-auto text-muted-foreground/60">
             {aiOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </span>
@@ -214,7 +214,7 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
                   </button>
                 </div>
                 <p className="text-[10px] text-amber-500 dark:text-amber-400">
-                  Image is for your reference only — describe what you see in the prompt below. The AI model is text-only.
+                  Gambar cuma buat referensi lo ya — AI-nya belum bisa baca gambar, jadi deskripsiin dulu lewat teks di bawah.
                 </p>
               </div>
             )}
@@ -225,7 +225,7 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handleImagePaste}
-              placeholder="Describe the BPMN diagram… (⌘Enter to send, paste or drop an image for context)"
+              placeholder="Ceritain diagram BPMN yang lo mau… (gambar hanyalah untuk referensi, saat ini AI nya belum support menerima gambar yah)"
               rows={3}
               disabled={isGenerating}
               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -254,7 +254,7 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
-                  Stop
+                  Hentiin
                 </button>
               )}
               <button
@@ -267,7 +267,7 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
                 ) : (
                   <Send className="h-3.5 w-3.5" />
                 )}
-                {isGenerating ? "Generating…" : "Generate"}
+                {isGenerating ? "Lagi proses..." : "Generate!"}
               </button>
             </div>
           </div>

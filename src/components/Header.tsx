@@ -65,10 +65,10 @@ export function Header({
           <SelectContent>
             <SelectItem value="bpmn">BPMN</SelectItem>
             <SelectItem value="sequence" disabled>
-              Sequence (soon)
+              Sequence (coming soon)
             </SelectItem>
             <SelectItem value="erd" disabled>
-              ERD (soon)
+              ERD (coming soon)
             </SelectItem>
           </SelectContent>
         </Select>
@@ -77,7 +77,7 @@ export function Header({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 text-xs gap-1">
               <FileCode className="h-3.5 w-3.5" />
-              Templates
+              Template
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -138,7 +138,7 @@ export function Header({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Toggle Theme</TooltipContent>
+          <TooltipContent>Ganti Tema</TooltipContent>
         </Tooltip>
       </header>
     </TooltipProvider>
