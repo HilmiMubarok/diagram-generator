@@ -6,10 +6,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  Minimize,
   RotateCcw,
   Download,
-  Image,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -25,7 +23,6 @@ export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<BpmnJS | null>(null);
   const onErrorsRef = useRef(onErrors);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
