@@ -2,12 +2,23 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import BpmnJS from "bpmn-js/lib/Modeler";
 import { CreateAppendAnythingModule } from "bpmn-js-create-append-anything";
 import type Canvas from "diagram-js/lib/core/Canvas";
+import type AlignElements from "diagram-js/lib/features/align-elements/AlignElements";
+import type DistributeElements from "diagram-js/lib/features/distribute-elements/DistributeElements";
+import type Selection from "diagram-js/lib/features/selection/Selection";
 import {
   ZoomIn,
   ZoomOut,
   Maximize,
   RotateCcw,
   Download,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignStartHorizontal,
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
+  AlignHorizontalSpaceAround,
+  AlignVerticalSpaceAround,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -29,6 +40,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
   // (because the change originated from the canvas itself)
   const skipNextImport = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCount, setSelectedCount] = useState(0);
 
   useEffect(() => {
     onErrorsRef.current = onErrors;
@@ -44,6 +56,11 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
       additionalModules: [CreateAppendAnythingModule],
     });
     viewerRef.current = modeler;
+
+    // Track selection changes for align/distribute toolbar
+    modeler.on("selection.changed", ({ newSelection }: { newSelection: unknown[] }) => {
+      setSelectedCount(newSelection.length);
+    });
 
     // Listen for any diagram change and emit updated XML to editor
     modeler.on("commandStack.changed", async () => {
@@ -138,6 +155,26 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
     viewerRef.current?.get<Canvas>("canvas").zoom("fit-viewport");
   }, []);
 
+  const handleAlign = useCallback((type: "left" | "right" | "center" | "top" | "bottom" | "middle") => {
+    const modeler = viewerRef.current;
+    if (!modeler) return;
+    const selection = modeler.get<Selection>("selection");
+    const alignElements = modeler.get<AlignElements>("alignElements");
+    const selected = selection.get();
+    if (selected.length < 2) return;
+    alignElements.trigger(selected, type);
+  }, []);
+
+  const handleDistribute = useCallback((orientation: "horizontal" | "vertical") => {
+    const modeler = viewerRef.current;
+    if (!modeler) return;
+    const selection = modeler.get<Selection>("selection");
+    const distributeElements = modeler.get<DistributeElements>("distributeElements");
+    const selected = selection.get();
+    if (selected.length < 3) return;
+    distributeElements.trigger(selected, orientation);
+  }, []);
+
   const handleExportPng = useCallback(async () => {
     const modeler = viewerRef.current;
     if (!modeler) return;
@@ -214,6 +251,83 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
             <TooltipContent>Unduh PNG</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Align / Distribute toolbar — visible only when ≥2 elements selected */}
+        {selectedCount >= 2 && (
+          <div className="flex items-center gap-0.5 px-3 py-1 border-b border-border bg-muted/40 shrink-0 flex-wrap">
+            <span className="text-[10px] text-muted-foreground mr-1">{selectedCount} dipilih</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleAlign("left")}>
+                  <AlignStartVertical className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rata kiri</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleAlign("center")}>
+                  <AlignCenterVertical className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rata tengah (horizontal)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleAlign("right")}>
+                  <AlignEndVertical className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rata kanan</TooltipContent>
+            </Tooltip>
+            <div className="w-px h-4 bg-border mx-0.5" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleAlign("top")}>
+                  <AlignStartHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rata atas</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleAlign("middle")}>
+                  <AlignCenterHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rata tengah (vertikal)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleAlign("bottom")}>
+                  <AlignEndHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rata bawah</TooltipContent>
+            </Tooltip>
+            {selectedCount >= 3 && (
+              <>
+                <div className="w-px h-4 bg-border mx-0.5" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDistribute("horizontal")}>
+                      <AlignHorizontalSpaceAround className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Distribusi horizontal</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDistribute("vertical")}>
+                      <AlignVerticalSpaceAround className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Distribusi vertikal</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Canvas Area */}
         <div className="flex-1 relative bg-background" style={{ overflow: "clip" }}>
