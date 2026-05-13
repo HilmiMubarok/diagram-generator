@@ -89,19 +89,23 @@ Return **ONLY** the raw XML — no markdown fences, no explanations, no code blo
 
 const API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY as string;
 const BASE_URL = import.meta.env.VITE_DEEPSEEK_BASE_URL as string;
-const MODEL = "deepseek-v4-flash";
+const TEXT_MODEL = "deepseek-v4-flash";
 
 export function useAiGenerate(onChunk: (chunk: string, replace: boolean) => void) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const generate = useCallback(async (prompt: string) => {
+  const generate = useCallback(async (prompt: string, _imageDataUrl?: string) => {
     if (isGenerating) return;
 
     abortRef.current = new AbortController();
     setIsGenerating(true);
     setError(null);
+
+    const model = TEXT_MODEL;
+    // DeepSeek API does not support vision/image inputs — send text only
+    const userContent = prompt;
 
     try {
       const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -112,11 +116,11 @@ export function useAiGenerate(onChunk: (chunk: string, replace: boolean) => void
           Authorization: `Bearer ${API_KEY}`,
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: model,
           stream: true,
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: prompt },
+            { role: "user", content: userContent },
           ],
         }),
       });

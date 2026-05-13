@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import type { Monaco } from "@monaco-editor/react";
-import { Sparkles, X, Send, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, X, Send, Loader2, ChevronDown, ChevronUp, ImagePlus } from "lucide-react";
 import { useAiGenerate } from "../hooks/useAiGenerate";
 
 interface EditorPaneProps {
@@ -14,7 +14,9 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = useCallback(
     (newValue: string | undefined) => {
@@ -37,8 +39,31 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
 
   const handleGenerate = useCallback(() => {
     if (!prompt.trim()) return;
-    generate(prompt.trim());
-  }, [prompt, generate]);
+    generate(prompt.trim(), imageDataUrl ?? undefined);
+  }, [prompt, imageDataUrl, generate]);
+
+  const handleImageFile = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImageDataUrl(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleImagePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
+    if (item) {
+      const file = item.getAsFile();
+      if (file) handleImageFile(file);
+    }
+  }, [handleImageFile]);
+
+  const handleImageDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
+    if (file) handleImageFile(file);
+  }, [handleImageFile]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -154,21 +179,75 @@ export function EditorPane({ value, onChange, theme }: EditorPaneProps) {
         </button>
 
         {aiOpen && (
-          <div className="px-3 pb-3 flex flex-col gap-2">
+          <div
+            className="px-3 pb-3 flex flex-col gap-2"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleImageDrop}
+          >
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageFile(file);
+                e.target.value = "";
+              }}
+            />
+
+            {/* Image preview */}
+            {imageDataUrl && (
+              <div className="flex flex-col gap-1">
+                <div className="relative w-full rounded-md overflow-hidden border border-input">
+                  <img
+                    src={imageDataUrl}
+                    alt="context"
+                    className="max-h-32 w-full object-contain bg-muted/30"
+                  />
+                  <button
+                    onClick={() => setImageDataUrl(null)}
+                    className="absolute top-1 right-1 rounded-full bg-background/80 p-0.5 hover:bg-destructive hover:text-white transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-amber-500 dark:text-amber-400">
+                  Image is for your reference only — describe what you see in the prompt below. The AI model is text-only.
+                </p>
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe the BPMN diagram you want to generate… (⌘Enter to send)"
+              onPaste={handleImagePaste}
+              placeholder="Describe the BPMN diagram… (⌘Enter to send, paste or drop an image for context)"
               rows={3}
               disabled={isGenerating}
               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             />
+
             {error && (
               <p className="text-xs text-destructive">{error}</p>
             )}
-            <div className="flex items-center gap-2 justify-end">
+
+            <div className="flex items-center gap-2">
+              {/* Upload image button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isGenerating}
+                title="Attach image"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ImagePlus className="h-3.5 w-3.5" />
+              </button>
+
+              <div className="flex-1" />
+
               {isGenerating && (
                 <button
                   onClick={cancel}
