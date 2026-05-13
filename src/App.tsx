@@ -119,6 +119,7 @@ export default function App() {
             xml={source}
             errors={errors}
             onErrors={setErrors}
+            onXmlChange={setSource}
           />
         </Panel>
       </PanelGroup>

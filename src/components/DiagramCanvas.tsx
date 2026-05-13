@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import BpmnJS from "bpmn-js/lib/NavigatedViewer";
+import BpmnJS from "bpmn-js/lib/Modeler";
 import type Canvas from "diagram-js/lib/core/Canvas";
-import { toPng } from "html-to-image";
 import {
   ZoomIn,
   ZoomOut,
@@ -17,38 +16,83 @@ interface DiagramCanvasProps {
   xml: string;
   errors: ValidationError[];
   onErrors: (errors: ValidationError[]) => void;
+  onXmlChange: (xml: string) => void;
 }
 
-export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
+export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<BpmnJS | null>(null);
   const onErrorsRef = useRef(onErrors);
+  const onXmlChangeRef = useRef(onXmlChange);
+  // When true, skip the next importXML triggered by external xml prop change
+  // (because the change originated from the canvas itself)
+  const skipNextImport = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     onErrorsRef.current = onErrors;
+    onXmlChangeRef.current = onXmlChange;
   });
 
-  // Init viewer once and import initial XML, then re-import on xml changes
+  // Init modeler once on mount
   useEffect(() => {
     if (!containerRef.current) return;
 
-    let viewer = viewerRef.current;
-    let created = false;
-    if (!viewer) {
-      viewer = new BpmnJS({ container: containerRef.current });
-      viewerRef.current = viewer;
-      created = true;
+    const modeler = new BpmnJS({ container: containerRef.current });
+    viewerRef.current = modeler;
+
+    // Listen for any diagram change and emit updated XML to editor
+    modeler.on("commandStack.changed", async () => {
+      try {
+        const { xml: updatedXml } = await modeler.saveXML({ format: true });
+        if (updatedXml) {
+          skipNextImport.current = true;
+          onXmlChangeRef.current(updatedXml);
+        }
+      } catch {
+        // ignore
+      }
+    });
+
+    // Import initial XML
+    setIsLoading(true);
+    modeler
+      .importXML(xml)
+      .then(() => {
+        onErrorsRef.current([]);
+        modeler.get<Canvas>("canvas").zoom("fit-viewport");
+      })
+      .catch((err: Error) => {
+        onErrorsRef.current([{ message: err.message }]);
+      })
+      .finally(() => setIsLoading(false));
+
+    return () => {
+      modeler.destroy();
+      viewerRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-import when xml prop changes externally (e.g. editor edits, template load)
+  useEffect(() => {
+    const modeler = viewerRef.current;
+    if (!modeler) return;
+
+    // Skip if this change was emitted by the canvas itself
+    if (skipNextImport.current) {
+      skipNextImport.current = false;
+      return;
     }
 
     let cancelled = false;
     setIsLoading(true);
-    viewer
+    modeler
       .importXML(xml)
       .then(() => {
         if (cancelled) return;
         onErrorsRef.current([]);
-        viewer!.get<Canvas>("canvas").zoom("fit-viewport");
+        modeler.get<Canvas>("canvas").zoom("fit-viewport");
       })
       .catch((err: Error) => {
         if (cancelled) return;
@@ -58,14 +102,7 @@ export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
         if (!cancelled) setIsLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-      if (created) {
-        viewer!.destroy();
-        viewerRef.current = null;
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
   }, [xml]);
 
   const handleZoomIn = useCallback(() => {
@@ -91,14 +128,29 @@ export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
   }, []);
 
   const handleExportPng = useCallback(async () => {
-    const el = containerRef.current;
-    if (!el) return;
+    const modeler = viewerRef.current;
+    if (!modeler) return;
     try {
-      const dataUrl = await toPng(el, { pixelRatio: 2 });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = "diagram.png";
-      a.click();
+      const { svg } = await modeler.saveSVG();
+      const img = new Image();
+      const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        const ctx = canvas.getContext("2d")!;
+        ctx.scale(2, 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, img.width, img.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = "diagram.png";
+        a.click();
+      };
+      img.src = url;
     } catch {
       // ignore
     }
