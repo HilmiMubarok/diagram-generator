@@ -78,3 +78,33 @@ body {
 .bjs-powered-by {
   display: none !important;
 }
+
+/* ── bpmn-js isolation ─────────────────────────────────────────────────────── */
+
+/* Neutralize Tailwind's * border-color reset inside bpmn-js containers */
+.djs-container *,
+.djs-palette *,
+.djs-popup *,
+.djs-context-pad * {
+  border-color: revert;
+  box-sizing: border-box;
+}
+
+/* Palette: fixed width single-column, sits above canvas */
+.djs-palette,
+.djs-palette.open,
+.djs-palette.two-column.open {
+  width: 48px !important;
+  z-index: 10 !important;
+}
+
+/* Context pad above diagram elements */
+.djs-context-pad {
+  z-index: 100 !important;
+}
+
+/* Popup (three-dot "Create element") — already position:fixed in bpmn-js,
+   just make sure z-index wins over our layout stacking contexts */
+.djs-popup {
+  z-index: 9999 !important;
+}

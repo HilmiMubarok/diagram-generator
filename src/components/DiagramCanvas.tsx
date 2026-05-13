@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import BpmnJS from "bpmn-js/lib/Modeler";
+import { CreateAppendAnythingModule } from "bpmn-js-create-append-anything";
 import type Canvas from "diagram-js/lib/core/Canvas";
 import {
   ZoomIn,
@@ -38,7 +39,10 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const modeler = new BpmnJS({ container: containerRef.current });
+    const modeler = new BpmnJS({
+      container: containerRef.current,
+      additionalModules: [CreateAppendAnythingModule],
+    });
     viewerRef.current = modeler;
 
     // Listen for any diagram change and emit updated XML to editor
@@ -212,7 +216,7 @@ export function DiagramCanvas({ xml, errors, onErrors, onXmlChange }: DiagramCan
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 relative overflow-hidden bg-background">
+        <div className="flex-1 relative bg-background" style={{ overflow: "clip" }}>
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
