@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import BpmnJS from "bpmn-js/lib/Viewer";
+import BpmnJS from "bpmn-js/lib/NavigatedViewer";
 import type Canvas from "diagram-js/lib/core/Canvas";
 import { toPng } from "html-to-image";
 import {
@@ -24,41 +24,52 @@ interface DiagramCanvasProps {
 export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<BpmnJS | null>(null);
+  const onErrorsRef = useRef(onErrors);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    onErrorsRef.current = onErrors;
+  });
+
+  // Init viewer once and import initial XML, then re-import on xml changes
+  useEffect(() => {
     if (!containerRef.current) return;
 
-    const viewer = new BpmnJS({
-      container: containerRef.current,
-    });
-    viewerRef.current = viewer;
+    let viewer = viewerRef.current;
+    let created = false;
+    if (!viewer) {
+      viewer = new BpmnJS({ container: containerRef.current });
+      viewerRef.current = viewer;
+      created = true;
+    }
 
-    return () => {
-      viewer.destroy();
-      viewerRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-
+    let cancelled = false;
     setIsLoading(true);
     viewer
       .importXML(xml)
       .then(() => {
-        onErrors([]);
-        viewer.get<Canvas>("canvas").zoom("fit-viewport");
+        if (cancelled) return;
+        onErrorsRef.current([]);
+        viewer!.get<Canvas>("canvas").zoom("fit-viewport");
       })
       .catch((err: Error) => {
-        onErrors([{ message: err.message }]);
+        if (cancelled) return;
+        onErrorsRef.current([{ message: err.message }]);
       })
       .finally(() => {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       });
-  }, [xml, onErrors]);
+
+    return () => {
+      cancelled = true;
+      if (created) {
+        viewer!.destroy();
+        viewerRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xml]);
 
   const handleZoomIn = useCallback(() => {
     const canvas = viewerRef.current?.get<Canvas>("canvas");
@@ -80,33 +91,6 @@ export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
 
   const handleReset = useCallback(() => {
     viewerRef.current?.get<Canvas>("canvas").zoom("fit-viewport");
-  }, []);
-
-  const handleToggleFullscreen = useCallback(() => {
-    const el = containerRef.current?.parentElement;
-    if (!el) return;
-    if (!document.fullscreenElement) {
-      el.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
-    } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
-    }
-  }, []);
-
-  const handleExportSvg = useCallback(async () => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    try {
-      const { svg } = await viewer.saveSVG();
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "diagram.svg";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // ignore
-    }
   }, []);
 
   const handleExportPng = useCallback(async () => {
@@ -163,32 +147,16 @@ export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
           <div className="flex-1" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleExportSvg}>
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Export SVG</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" onClick={handleExportPng}>
-                <Image className="h-4 w-4" />
+                <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Export PNG</TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleToggleFullscreen}>
-                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</TooltipContent>
-          </Tooltip>
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 relative overflow-hidden p-4 bg-background">
+        <div className="flex-1 relative overflow-hidden bg-background">
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -200,7 +168,8 @@ export function DiagramCanvas({ xml, errors, onErrors }: DiagramCanvasProps) {
                 <div className="font-medium mb-1">Diagram Errors</div>
                 {errors.map((err, i) => (
                   <div key={i} className="font-mono text-xs">
-                    {err.line ? `Line ${err.line}: ` : ""}{err.message}
+                    {err.line ? `Line ${err.line}: ` : ""}
+                    {err.message}
                   </div>
                 ))}
               </div>
