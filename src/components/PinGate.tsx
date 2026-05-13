@@ -15,11 +15,36 @@ export function PinGate({ children }: PinGateProps) {
   const [shake, setShake] = useState(false);
   const [error, setError] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 5 minutes
+  const IDLE_MS = 5 * 60 * 1000;
+
+  const lock = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setUnlocked(false);
+    setDigits(Array(PIN_LENGTH).fill(""));
+  };
+
+  const resetIdleTimer = () => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(lock, IDLE_MS);
+  };
 
   useEffect(() => {
     if (!unlocked) {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
+      return;
     }
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "wheel"];
+    events.forEach((e) => window.addEventListener(e, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetIdleTimer));
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unlocked]);
 
   const reset = () => {
