@@ -17,8 +17,8 @@ export function PinGate({ children }: PinGateProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 5 minutes
-  const IDLE_MS = 5 * 60 * 1000;
+  // 60 minutes
+  const IDLE_MS = 60 * 60 * 1000;
 
   const lock = () => {
     sessionStorage.removeItem(SESSION_KEY);
@@ -166,7 +166,7 @@ export function PinGate({ children }: PinGateProps) {
         )}
 
         <p className="text-xs text-muted-foreground text-center">
-          Sesi tersimpan sampai tab ditutup
+          Sesi tersimpan sampai browser ditutup
         </p>
       </div>
 
